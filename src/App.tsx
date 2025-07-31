@@ -7,111 +7,103 @@ import {
   deletePost,
 } from './api';
 
+import type { Post, Comment } from './api';
+
 function App() {
-  // State to store various data
-  const [allPosts, setAllPosts] = useState<any[]>([]);
-  const [singlePost, setSinglePost] = useState<any>(null);
-  const [comments, setComments] = useState<any[]>([]);
-  const [updatedPost, setUpdatedPost] = useState<any>(null);
-  const [deleteStatus, setDeleteStatus] = useState<boolean | null>(null);
+  //State with correct types
+  const [allPosts, setAllPosts] = useState<Post[]>([]);
+  const [singlePost, setSinglePost] = useState<Post | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // Load all API calls once on page load
+  // Load all posts once on initial render
   useEffect(() => {
-    const fetchData = async () => {
-      // 1. Get all posts
-      const posts = await getPosts();
-      setAllPosts(posts);
-
-      // 2. Get single post by ID = 1
-      const post = await getPostById(1);
-      setSinglePost(post);
-
-      // 3. Get comments for post ID = 1
-      const commentsData = await getCommentsForPost(1);
-      setComments(commentsData);
-
-      // 4. Update post ID = 1 (demo update)
-      const updated = await updatePost(1, {
-        title: 'Updated Title',
-        body: 'Updated body content',
-        userId: 1,
-      });
-      setUpdatedPost(updated);
-
-      // 5. Delete post ID = 1 (demo delete)
-      const deleted = await deletePost(1);
-      setDeleteStatus(deleted);
+    const fetchAllPosts = async () => {
+      try {
+        const posts = await getPosts();
+        setAllPosts(posts);
+      } catch (err) {
+        setError('Error fetching posts');
+      }
     };
-
-    fetchData();
+    fetchAllPosts();
   }, []);
 
+  // Function to load a single post and its comments
+  const loadPostDetails = async (id: number) => {
+    try {
+      const post = await getPostById(id);
+      const postComments = await getCommentsForPost(id);
+      setSinglePost(post);
+      setComments(postComments);
+    } catch (err) {
+      setError(`Error fetching details for post ${id}`);
+    }
+  };
+
+  // Function to update a post (for demo, updates title only)
+  const handleUpdate = async (id: number) => {
+    try {
+      const updated = await updatePost(id, { title: 'Updated Title!' });
+      alert(`Post ${id} updated with title: ${updated.title}`);
+    } catch (err) {
+      setError(`Error updating post ${id}`);
+    }
+  };
+
+  // Function to delete a post
+  const handleDelete = async (id: number) => {
+    try {
+      await deletePost(id);
+      alert(`Post ${id} deleted`);
+      setAllPosts(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      setError(`Error deleting post ${id}`);
+    }
+  };
+
   return (
-    <div style={{ padding: '20px', fontFamily: 'Arial' }}>
+    <div style={{ padding: '1rem', fontFamily: 'Arial' }}>
       <h1>React Axios API Demo</h1>
 
-      {/* 1. All Posts */}
-      <section>
-        <h2>All Posts (first 5)</h2>
-        <ul>
-          {allPosts.slice(0, 5).map((post) => (
-            <li key={post.id}>{post.title}</li>
-          ))}
-        </ul>
-      </section>
+      {/*  Show error if exists */}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
 
-      {/* 2. Single Post */}
-      <section>
-        <h2>Single Post (ID = 1)</h2>
-        {singlePost ? (
-          <div>
+      <h2>All Posts</h2>
+      <ul>
+        {allPosts.slice(0, 5).map(post => (
+          <li key={post.id}>
+            <strong>{post.title}</strong>
+            <br />
+            <button onClick={() => loadPostDetails(post.id)}>View</button>
+            <button onClick={() => handleUpdate(post.id)}>Update</button>
+            <button onClick={() => handleDelete(post.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
+
+      {/*  Display single post + comments */}
+      {singlePost && (
+        <div>
+          <h2>Post Details</h2>
+          <p>
             <strong>{singlePost.title}</strong>
-            <p>{singlePost.body}</p>
-          </div>
-        ) : (
-          <p>Loading single post...</p>
-        )}
-      </section>
+            <br />
+            {singlePost.body}
+          </p>
 
-      {/* 3. Comments for Post */}
-      <section>
-        <h2>Comments for Post ID = 1</h2>
-        <ul>
-          {comments.slice(0, 3).map((comment) => (
-            <li key={comment.id}>
-              <strong>{comment.name}</strong>: {comment.body}
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* 4. Updated Post */}
-      <section>
-        <h2>Updated Post (ID = 1)</h2>
-        {updatedPost ? (
-          <div>
-            <strong>{updatedPost.title}</strong>
-            <p>{updatedPost.body}</p>
-          </div>
-        ) : (
-          <p>Updating post...</p>
-        )}
-      </section>
-
-      {/* 5. Delete Status */}
-      <section>
-        <h2>Delete Post (ID = 1)</h2>
-        <p>
-          {deleteStatus === null
-            ? 'Deleting post...'
-            : deleteStatus
-            ? 'Post deleted successfully.'
-            : 'Failed to delete post.'}
-        </p>
-      </section>
+          <h3>Comments</h3>
+          <ul>
+            {comments.map(c => (
+              <li key={c.id}>
+                <strong>{c.email}:</strong> {c.body}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
 export default App;
-
